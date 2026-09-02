@@ -160,6 +160,19 @@ export function useConfigureLanes(weekId: string) {
   });
 }
 
+export function useCopyWeek() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { sourceWeekId: string; targetWeekId: string; overwrite: boolean }) =>
+      api.post<{ copiedBlocks: number; copiedFootnotes: number }>(`/api/weeks/${input.sourceWeekId}/copy`, { targetWeekId: input.targetWeekId, overwrite: input.overwrite }),
+    onSuccess: (res, vars) => {
+      qc.invalidateQueries({ queryKey: keys.week(vars.targetWeekId) });
+      toast.success(`${res.copiedBlocks} Blöcke und ${res.copiedFootnotes} Termine/Info kopiert`);
+    },
+    onError,
+  });
+}
+
 export function useCreateBlock(weekId: string) {
   const qc = useQueryClient();
   return useMutation({

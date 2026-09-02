@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Columns3, Copy, ZoomIn, ZoomOut } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { BlurInput } from "@/client/components/common/BlurInput";
+import { NativeSelect } from "@/client/components/common/NativeSelect";
 import {
+  useConfigureLanes,
+  useCopyWeek,
   useCreateBlock,
   useCreateFootnote,
   useDeleteBlock,
@@ -24,7 +28,9 @@ import { BlockDialog, type BlockDialogState } from "./BlockDialog";
 import { DayColumn } from "./DayColumn";
 import { DayFooter } from "./DayFooter";
 import { FootnoteDialog, type FootnoteDialogState } from "./FootnoteDialog";
+import { LaneConfigDialog } from "./LaneConfigDialog";
 import { WeekSidebar } from "./WeekSidebar";
+import { useGridInteractions } from "./useGridInteractions";
 import "./grid.css";
 
 const ZOOM_STEPS = [8, 11, 14, 18, 24];
@@ -56,13 +62,16 @@ function dayWeight(lanes: LaneDto[]): number {
 export function WeekGrid({ wkId, weekId, initialData }: Props) {
   const { data } = useWeekBundle(weekId, initialData);
   const bundle = data ?? initialData;
-  const { week, days, lanesByDay, blocks, footnotes, categories, personnel, settings, terms } = bundle;
+  const { week, days, lanesByDay, blocks, footnotes, categories, personnel, settings, terms, units } = bundle;
 
   const [zoom, setZoom] = useState(2);
   const rowPx = ZOOM_STEPS[zoom];
   const [blockDialog, setBlockDialog] = useState<BlockDialogState | null>(null);
   const [footnoteDialog, setFootnoteDialog] = useState<FootnoteDialogState | null>(null);
+  const [laneDialog, setLaneDialog] = useState(false);
+  const [copyTarget, setCopyTarget] = useState("");
   const [lastCategoryId, setLastCategoryId] = useState<string | null>(null);
+  const dayRefs = useRef(new Map<string, HTMLDivElement>());
 
   const createBlock = useCreateBlock(weekId);
   const updateBlock = useUpdateBlock(weekId);
@@ -72,17 +81,72 @@ export function WeekGrid({ wkId, weekId, initialData }: Props) {
   const deleteFootnote = useDeleteFootnote(weekId);
   const updateDay = useUpdateDay(weekId);
   const updateWeek = useUpdateWeek(weekId);
+  const configureLanes = useConfigureLanes(weekId);
+  const copyWeek = useCopyWeek();
+
+  const openBlock = useCallback((block: BlockDto) => setBlockDialog({ mode: "edit", block }), []);
+  const openFootnote = useCallback((fn: FootnoteDto) => setFootnoteDialog({ mode: "edit", footnote: fn }), []);
+
+  const removeBlockWithUndo = useCallback(
+    (block: BlockDto) => {
+      deleteBlock.mutate(block.id);
+      const { id: _id, updatedAt: _u, ...data } = block;
+      toast("Block gelöscht", {
+        action: { label: "Rückgängig", onClick: () => createBlock.mutate(data) },
+        duration: 6000,
+      });
+    },
+    [createBlock, deleteBlock],
+  );
+
+  const interactions = useGridInteractions({
+    rowPx,
+    days,
+    lanesByDay,
+    dayRefs,
+    onMoveBlock: (block, target, { duplicate }) => {
+      if (duplicate) {
+        const { id: _id, updatedAt: _u, ...data } = block;
+        createBlock.mutate({ ...data, ...target });
+      } else {
+        updateBlock.mutate({ id: block.id, patch: { ...target, expectedUpdatedAt: block.updatedAt } });
+      }
+    },
+    onResizeBlock: (block, patch) => updateBlock.mutate({ id: block.id, patch: { ...patch, expectedUpdatedAt: block.updatedAt } }),
+    onMoveFootnote: (fn, patch) => updateFootnote.mutate({ id: fn.id, patch }),
+    onMarqueeEnd: (m) => {
+      if (m.laneKind === "info") setFootnoteDialog({ mode: "create", footnote: { dayId: m.dayId, startMin: m.startMin, endMin: m.endMin } });
+      else setBlockDialog({ mode: "create", block: { dayId: m.dayId, startMin: m.startMin, endMin: m.endMin, laneStartOrder: m.laneStartOrder, laneSpan: m.laneSpan } });
+    },
+    onEmptyClick: (day: DayDto, laneIndex: number, startMin: number, lane) => {
+      const endMin = Math.min(startMin + 30, 23 * 60);
+      if (lane?.kind === "info") setFootnoteDialog({ mode: "create", footnote: { dayId: day.id, startMin, endMin } });
+      else setBlockDialog({ mode: "create", block: { dayId: day.id, startMin, endMin, laneStartOrder: laneIndex, laneSpan: 1 } });
+    },
+  });
+
+  // Vorschau während Drag/Resize auf die Daten anwenden
+  const effectiveBlocks = useMemo(() => {
+    const p = interactions.preview;
+    if (!p?.blockId) return blocks;
+    return blocks.map((b) => (b.id === p.blockId ? { ...b, ...p.target } : b));
+  }, [blocks, interactions.preview]);
+  const effectiveFootnotes = useMemo(() => {
+    const p = interactions.preview;
+    if (!p?.footnoteId) return footnotes;
+    return footnotes.map((f) => (f.id === p.footnoteId ? { ...f, startMin: p.target.startMin, endMin: p.target.endMin } : f));
+  }, [footnotes, interactions.preview]);
 
   const blocksByDay = useMemo(() => {
     const m: Record<string, BlockDto[]> = {};
-    for (const b of blocks) (m[b.dayId] ??= []).push(b);
+    for (const b of effectiveBlocks) (m[b.dayId] ??= []).push(b);
     return m;
-  }, [blocks]);
+  }, [effectiveBlocks]);
   const footnotesByDay = useMemo(() => {
     const m: Record<string, FootnoteDto[]> = {};
-    for (const f of footnotes) (m[f.dayId] ??= []).push(f);
+    for (const f of effectiveFootnotes) (m[f.dayId] ??= []).push(f);
     return m;
-  }, [footnotes]);
+  }, [effectiveFootnotes]);
 
   const gridTemplateColumns = useMemo(
     () => `${TIME_COL}px ${days.map((d) => `${dayWeight(lanesByDay[d.id] ?? [])}fr`).join(" ")} ${TIME_COL}px ${SIDEBAR_COL}px`,
@@ -91,21 +155,10 @@ export function WeekGrid({ wkId, weekId, initialData }: Props) {
 
   const prevWeek = bundle.weeks.find((w) => w.index === week.index - 1);
   const nextWeek = bundle.weeks.find((w) => w.index === week.index + 1);
-
-  const onEmptyClick = useCallback(
-    (day: DayDto, laneIndex: number, startMin: number, lane: LaneDto) => {
-      const endMin = Math.min(startMin + 30, 23 * 60);
-      if (lane?.kind === "info") {
-        setFootnoteDialog({ mode: "create", footnote: { dayId: day.id, startMin, endMin } });
-        return;
-      }
-      setBlockDialog({ mode: "create", block: { dayId: day.id, startMin, endMin, laneStartOrder: laneIndex, laneSpan: 1 } });
-    },
-    [],
-  );
-
-  const openBlock = useCallback((block: BlockDto) => setBlockDialog({ mode: "edit", block }), []);
-  const openFootnote = useCallback((fn: FootnoteDto) => setFootnoteDialog({ mode: "edit", footnote: fn }), []);
+  const registerRef = useCallback((dayId: string, el: HTMLDivElement | null) => {
+    if (el) dayRefs.current.set(dayId, el);
+    else dayRefs.current.delete(dayId);
+  }, []);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -124,13 +177,44 @@ export function WeekGrid({ wkId, weekId, initialData }: Props) {
           {formatIsoDe(days[0]?.date ?? week.startDate)} bis {formatIsoDe(days[6]?.date ?? week.startDate)} · {week.label}
         </span>
         <div className="ml-auto flex items-center gap-1">
+          <Button variant="outline" size="sm" onClick={() => setLaneDialog(true)}>
+            <Columns3 /> Spalten
+          </Button>
+          <div className="flex items-center gap-1">
+            <NativeSelect
+              size="sm"
+              options={bundle.weeks.filter((w) => w.id !== weekId).map((w) => ({ value: w.id, label: w.label }))}
+              placeholder="Kopieren nach…"
+              value={copyTarget}
+              onChange={(e) => setCopyTarget(e.target.value)}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!copyTarget || copyWeek.isPending}
+              title="Spalten, Blöcke und Termine/Info dieser Woche in die Zielwoche kopieren"
+              onClick={() => {
+                copyWeek.mutate(
+                  { sourceWeekId: weekId, targetWeekId: copyTarget, overwrite: false },
+                  {
+                    onError: (err: unknown) => {
+                      if (err instanceof Error && err.message.includes("Überschreiben") && window.confirm("Die Zielwoche enthält bereits Blöcke. Alles überschreiben?")) {
+                        copyWeek.mutate({ sourceWeekId: weekId, targetWeekId: copyTarget, overwrite: true });
+                      }
+                    },
+                  },
+                );
+              }}
+            >
+              <Copy /> Kopieren
+            </Button>
+          </div>
           <Button variant="ghost" size="icon-sm" disabled={zoom === 0} onClick={() => setZoom((z) => Math.max(0, z - 1))} title="Verkleinern">
             <ZoomOut />
           </Button>
           <Button variant="ghost" size="icon-sm" disabled={zoom === ZOOM_STEPS.length - 1} onClick={() => setZoom((z) => Math.min(ZOOM_STEPS.length - 1, z + 1))} title="Vergrössern">
             <ZoomIn />
           </Button>
-          <span className="ml-2 text-xs text-muted-foreground">Einheit: {settings.companyName}</span>
         </div>
       </div>
 
@@ -172,7 +256,7 @@ export function WeekGrid({ wkId, weekId, initialData }: Props) {
                     style={{ width: `${(l.widthWeight / total) * 100}%` }}
                     title={l.label}
                   >
-                    <span className={l.widthWeight < 0.7 || lanes.length > 5 ? "wap-vertical-text text-[10px] leading-none" : "text-[10px] leading-none"}>{l.label}</span>
+                    <span className={l.widthWeight < 0.9 || lanes.length > 4 ? "wap-vertical-text text-[10px] leading-none" : "text-[10px] leading-none"}>{l.label}</span>
                   </div>
                 ))}
               </div>
@@ -180,7 +264,7 @@ export function WeekGrid({ wkId, weekId, initialData }: Props) {
           })}
           <div className="border-b border-r border-black/40 bg-muted/40" />
           <div className="border-b border-black/40 bg-muted/20 p-1 text-[10px] text-muted-foreground">
-            Stand: {week.standDate ? formatIsoDe(week.standDate) : "–"}
+            Stand: {week.standDate ? formatIsoDe(week.standDate) : "–"} · Einheit: {settings.companyName}
           </div>
 
           {/* Zeile 3: Zeitachse, Tage, Seitenleiste */}
@@ -194,8 +278,13 @@ export function WeekGrid({ wkId, weekId, initialData }: Props) {
               footnotes={footnotesByDay[d.id] ?? []}
               categories={categories}
               rowPx={rowPx}
-              selectedBlockId={blockDialog?.block.id ?? null}
-              onEmptyClick={onEmptyClick}
+              selectedBlockId={blockDialog?.block.id ?? interactions.preview?.blockId ?? null}
+              registerRef={registerRef}
+              marquee={interactions.marquee?.dayId === d.id ? interactions.marquee : null}
+              onEmptyPointerDown={interactions.onEmptyPointerDown}
+              onBlockPointerDown={interactions.onBlockPointerDown}
+              onResizeStart={interactions.onResizeStart}
+              onFootnotePointerDown={interactions.onFootnotePointerDown}
               onOpenBlock={openBlock}
               onOpenFootnote={openFootnote}
             />
@@ -226,6 +315,10 @@ export function WeekGrid({ wkId, weekId, initialData }: Props) {
         </div>
       </div>
 
+      <p className="border-t px-3 py-1 text-[11px] text-muted-foreground">
+        Klick auf freie Fläche = neuer Block (30 min) · Aufziehen = Block über Zeit und Spalten · Ziehen = verschieben (Shift: nur Zeit, Alt: duplizieren) · Ränder ziehen = Dauer/Spalten ändern · Klick auf Block = bearbeiten · Beso-Spalte = Termine/Info
+      </p>
+
       <BlockDialog
         state={blockDialog}
         onClose={() => setBlockDialog(null)}
@@ -241,7 +334,8 @@ export function WeekGrid({ wkId, weekId, initialData }: Props) {
           else createBlock.mutate(input, { onSuccess: () => setBlockDialog(null) });
         }}
         onDelete={(id) => {
-          deleteBlock.mutate(id);
+          const block = blocks.find((b) => b.id === id);
+          if (block) removeBlockWithUndo(block);
           setBlockDialog(null);
         }}
       />
@@ -255,6 +349,18 @@ export function WeekGrid({ wkId, weekId, initialData }: Props) {
         onDelete={(id) => {
           deleteFootnote.mutate(id);
           setFootnoteDialog(null);
+        }}
+      />
+      <LaneConfigDialog
+        open={laneDialog}
+        onClose={() => setLaneDialog(false)}
+        days={days}
+        weekLanes={bundle.weekLanes}
+        lanesByDay={lanesByDay}
+        units={units}
+        onApply={(input) => {
+          configureLanes.mutate(input);
+          setLaneDialog(false);
         }}
       />
     </div>

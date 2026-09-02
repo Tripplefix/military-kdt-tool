@@ -17,16 +17,14 @@ export interface DayColumnProps {
   rowPx: number;
   selectedBlockId?: string | null;
   printMode?: boolean;
-  /** Klick auf freie Fläche: Lane-Index und Uhrzeit */
-  onEmptyClick?: (day: DayDto, laneIndex: number, startMin: number, lane: LaneDto) => void;
   onEmptyPointerDown?: (e: ReactPointerEvent<HTMLDivElement>, day: DayDto, laneIndex: number, startMin: number) => void;
   onOpenBlock?: (block: BlockDto) => void;
   onBlockPointerDown?: (e: ReactPointerEvent<HTMLDivElement>, block: BlockDto) => void;
   onResizeStart?: (e: ReactPointerEvent<HTMLDivElement>, block: BlockDto, edge: "top" | "bottom" | "left" | "right") => void;
   onOpenFootnote?: (fn: FootnoteDto) => void;
   onFootnotePointerDown?: (e: ReactPointerEvent<HTMLDivElement>, fn: FootnoteDto) => void;
-  /** Für Drag-Vorschau: Overlay-Element */
-  overlay?: React.ReactNode;
+  /** Aufzieh-Rechteck (neuer Block) */
+  marquee?: { startMin: number; endMin: number; laneStartOrder: number; laneSpan: number } | null;
   registerRef?: (dayId: string, el: HTMLDivElement | null) => void;
 }
 
@@ -71,11 +69,6 @@ export function DayColumn(props: DayColumnProps) {
       ref={ref}
       className="wap-day-body relative border-r border-black/40"
       style={{ height, ["--row" as string]: `${rowPx}px` }}
-      onClick={(e) => {
-        if (printMode || e.target !== e.currentTarget) return;
-        const { laneIndex, startMin } = hitTest(e);
-        props.onEmptyClick?.(day, laneIndex, startMin, lanes[laneIndex]);
-      }}
       onPointerDown={(e) => {
         if (printMode || e.target !== e.currentTarget) return;
         const { laneIndex, startMin } = hitTest(e);
@@ -138,7 +131,21 @@ export function DayColumn(props: DayColumnProps) {
           />
         );
       })}
-      {props.overlay}
+      {props.marquee && (() => {
+        const span = spanSlot(slots, props.marquee.laneStartOrder, props.marquee.laneSpan);
+        return (
+          <div
+            className="pointer-events-none absolute rounded-sm border-2 border-dashed border-blue-500 bg-blue-500/15"
+            style={{
+              left: `${span.left * 100}%`,
+              width: `${span.width * 100}%`,
+              top: minutesToOffset(props.marquee.startMin, rowPx),
+              height: durationToSize(props.marquee.startMin, props.marquee.endMin, rowPx),
+              zIndex: 40,
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }
