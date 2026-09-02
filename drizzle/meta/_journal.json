@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1788342411117,
+      "tag": "0000_goofy_marvel_boy",
+      "breakpoints": true
+    }
+  ]
+}

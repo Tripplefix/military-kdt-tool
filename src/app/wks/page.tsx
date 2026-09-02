@@ -1,11 +1,10 @@
-import { redirect } from "next/navigation";
 import { getRequestContext } from "@/server/auth/context";
 import { wkService } from "@/server/services/wkService";
+import { WkListPage } from "@/client/components/settings/WkListPage";
 
 export const dynamic = "force-dynamic";
 
-export default function Home() {
+export default function WksPage() {
   const wks = wkService.list(getRequestContext());
-  if (wks.length === 0) redirect("/wks");
-  redirect(`/wk/${wks[0].id}/week/0`);
+  return <WkListPage initialWks={wks} />;
 }
