@@ -228,10 +228,10 @@ export interface TagesbefehlRowDto {
   sourceSnapshot: RowSnapshotDto | null;
   overridden: boolean;
   deleted: boolean;
-  /** Berechnet: Quelle hat sich seit dem Override geändert. */
-  staleSource?: boolean;
-  /** Berechnet: Quelle existiert nicht mehr. */
-  orphan?: boolean;
+  /** Quelle hat sich seit dem Override geändert. */
+  sourceChanged: boolean;
+  /** Quelle existiert nicht mehr. */
+  orphan: boolean;
 }
 
 export interface TagesbefehlDto {

@@ -298,6 +298,10 @@ export const tagesbefehlRow = sqliteTable(
     sourceSnapshot: text("source_snapshot", { mode: "json" }).$type<RowSnapshot | null>(),
     overridden: integer("overridden", { mode: "boolean" }).notNull().default(false),
     deleted: integer("deleted", { mode: "boolean" }).notNull().default(false),
+    /** Quelle hat sich seit dem Override geändert. */
+    sourceChanged: integer("source_changed", { mode: "boolean" }).notNull().default(false),
+    /** Quelle existiert nicht mehr (Zeile war überschrieben und bleibt). */
+    orphan: integer("orphan", { mode: "boolean" }).notNull().default(false),
     ...timestamps,
   },
   (t) => [index("tbrow_tb").on(t.tagesbefehlId), index("tbrow_source").on(t.tagesbefehlId, t.sourceKey)],

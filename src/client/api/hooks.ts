@@ -12,6 +12,9 @@ import type {
   LaneConfigInput,
   PersonnelInput,
   SettingsPatch,
+  TagesbefehlPatch,
+  TagesbefehlRowInput,
+  TagesbefehlRowPatch,
   TermInput,
   UnitInput,
   WeekCreate,
@@ -25,6 +28,9 @@ import type {
   FootnoteDto,
   PersonnelDto,
   SettingsDto,
+  TagesbefehlBundle,
+  TagesbefehlDto,
+  TagesbefehlRowDto,
   TermTemplateDto,
   UnitDto,
   WeekBundle,
@@ -259,6 +265,83 @@ export function useDeleteFootnote(weekId: string) {
   return useMutation({
     mutationFn: (id: string) => api.del(`/api/footnotes/${id}`),
     onSuccess: (_r, id) => patchBundle(qc, weekId, (b) => ({ ...b, footnotes: b.footnotes.filter((f) => f.id !== id) })),
+    onError,
+  });
+}
+
+// ---------- Tagesbefehl ----------
+
+export function useTagesbefehl(dayId: string, initialData?: TagesbefehlBundle) {
+  return useQuery({ queryKey: keys.tagesbefehl(dayId), queryFn: () => api.get<TagesbefehlBundle>(`/api/tagesbefehl/${dayId}`), initialData });
+}
+
+function patchTb(qc: ReturnType<typeof useQueryClient>, dayId: string, fn: (b: TagesbefehlBundle) => TagesbefehlBundle) {
+  qc.setQueryData<TagesbefehlBundle>(keys.tagesbefehl(dayId), (old) => (old ? fn(old) : old));
+}
+
+export function useRegenerateTagesbefehl(dayId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<TagesbefehlBundle>(`/api/tagesbefehl/${dayId}/regenerate`),
+    onSuccess: (bundle) => {
+      qc.setQueryData(keys.tagesbefehl(dayId), bundle);
+      qc.invalidateQueries({ queryKey: keys.week(bundle.week.id) });
+      toast.success("Tagesbefehl aus WAP aktualisiert");
+    },
+    onError,
+  });
+}
+
+export function useUpdateTagesbefehl(dayId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: TagesbefehlPatch) => api.patch<TagesbefehlDto>(`/api/tagesbefehl/${dayId}`, patch),
+    onSuccess: (tb) => patchTb(qc, dayId, (b) => ({ ...b, tagesbefehl: tb })),
+    onError,
+  });
+}
+
+export function useAddTagesbefehlRow(dayId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: TagesbefehlRowInput) => api.post<TagesbefehlRowDto>(`/api/tagesbefehl/${dayId}/rows`, input),
+    onSuccess: (row) => patchTb(qc, dayId, (b) => ({ ...b, rows: [...b.rows, row] })),
+    onError,
+  });
+}
+
+export function useUpdateTagesbefehlRow(dayId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: TagesbefehlRowPatch }) => api.patch<TagesbefehlRowDto>(`/api/tagesbefehl/rows/${id}`, patch),
+    onSuccess: (row) => patchTb(qc, dayId, (b) => ({ ...b, rows: b.rows.map((r) => (r.id === row.id ? row : r)) })),
+    onError,
+  });
+}
+
+export function useDeleteTagesbefehlRow(dayId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del<TagesbefehlRowDto | undefined>(`/api/tagesbefehl/rows/${id}`),
+    onSuccess: (row, id) => patchTb(qc, dayId, (b) => ({ ...b, rows: row ? b.rows.map((r) => (r.id === id ? row : r)) : b.rows.filter((r) => r.id !== id) })),
+    onError,
+  });
+}
+
+export function useRestoreTagesbefehlRow(dayId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<TagesbefehlRowDto>(`/api/tagesbefehl/rows/${id}/restore`),
+    onSuccess: (row) => patchTb(qc, dayId, (b) => ({ ...b, rows: b.rows.map((r) => (r.id === row.id ? row : r)) })),
+    onError,
+  });
+}
+
+export function useMoveTagesbefehlRow(dayId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dir }: { id: string; dir: -1 | 1 }) => api.post(`/api/tagesbefehl/rows/${id}/move`, { dir }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.tagesbefehl(dayId) }),
     onError,
   });
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Columns3, Copy, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Columns3, Copy, Printer, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { BlurInput } from "@/client/components/common/BlurInput";
@@ -177,6 +177,9 @@ export function WeekGrid({ wkId, weekId, initialData }: Props) {
           {formatIsoDe(days[0]?.date ?? week.startDate)} bis {formatIsoDe(days[6]?.date ?? week.startDate)} · {week.label}
         </span>
         <div className="ml-auto flex items-center gap-1">
+          <Button variant="outline" size="sm" nativeButton={false} render={<a href={`/print/week/${weekId}`} target="_blank" rel="noreferrer" />} title="Druckansicht A3 quer">
+            <Printer /> Drucken
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setLaneDialog(true)}>
             <Columns3 /> Spalten
           </Button>
@@ -228,11 +231,18 @@ export function WeekGrid({ wkId, weekId, initialData }: Props) {
             heure
           </div>
           {days.map((d) => (
-            <div key={d.id} className="border-b border-r border-black/40 bg-muted/40 p-1 text-center leading-tight">
+            <div key={d.id} className="relative border-b border-r border-black/40 bg-muted/40 p-1 text-center leading-tight">
               <div className="font-semibold">
                 {WEEKDAY_NAMES_DE[d.weekday]} / {WEEKDAY_NAMES_IT[d.weekday]}
               </div>
               <div>{formatIsoDe(d.date)}</div>
+              <Link
+                href={`/wk/${wkId}/day/${d.date}/tagesbefehl`}
+                className={`absolute top-0.5 right-0.5 rounded px-1 text-[10px] hover:bg-accent ${bundle.tagesbefehlDayIds.includes(d.id) ? "text-foreground" : "text-muted-foreground"}`}
+                title={bundle.tagesbefehlDayIds.includes(d.id) ? "Tagesbefehl öffnen" : "Tagesbefehl erstellen"}
+              >
+                TB{bundle.tagesbefehlDayIds.includes(d.id) ? " ✓" : ""}
+              </Link>
             </div>
           ))}
           <div className="border-b border-r border-black/40 bg-muted/40 p-1 text-center leading-tight">

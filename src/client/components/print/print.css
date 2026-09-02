@@ -1,0 +1,62 @@
+/* Druck-Layouts: A3 quer (WAP) und A4 hoch (Tagesbefehl). Masse in mm, Farben erzwungen. */
+.print-root {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.print-page-a3 {
+  width: 404mm; /* A3 quer 420mm minus 2 x 8mm Rand */
+  margin: 0 auto;
+}
+.print-page-a4 {
+  width: 180mm; /* A4 hoch 210mm minus 2 x 15mm Rand */
+  margin: 0 auto;
+}
+
+@media screen {
+  .print-page-a3,
+  .print-page-a4 {
+    margin: 12px auto;
+    padding: 8mm;
+    background: white;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+}
+
+@media print {
+  html,
+  body {
+    background: white !important;
+  }
+  .print-root {
+    min-height: 0;
+  }
+}
+
+.print-a3 {
+  @page {
+    size: A3 landscape;
+    margin: 8mm;
+  }
+}
+.print-a4 {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 15mm 12mm 15mm;
+  }
+}
+
+.tb-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-size: 90pt;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(200, 0, 0, 0.12);
+  transform: rotate(-30deg);
+  z-index: 0;
+}
