@@ -195,48 +195,68 @@ export const wkCreateSchema = z.object({
 });
 export type WkCreate = z.infer<typeof wkCreateSchema>;
 
-export const personnelInputSchema = z.object({
+// Stammdaten: Felder ohne Defaults definieren, damit .partial() beim Teil-Update
+// keine Defaults einsetzt (sonst würden nicht gesendete Felder überschrieben).
+const personnelFields = {
   name: z.string().trim().min(1).max(120),
-  rank: z.string().trim().max(40).default(""),
-  role: z.enum(PERSONNEL_ROLES).default("other"),
-  unitId: z.string().nullable().default(null),
-  phone: z.string().trim().max(60).default(""),
-  order: z.number().int().default(0),
+  rank: z.string().trim().max(40),
+  role: z.enum(PERSONNEL_ROLES),
+  unitId: z.string().nullable(),
+  phone: z.string().trim().max(60),
+  order: z.number().int(),
+};
+export const personnelInputSchema = z.object({
+  ...personnelFields,
+  rank: personnelFields.rank.default(""),
+  role: personnelFields.role.default("other"),
+  unitId: personnelFields.unitId.default(null),
+  phone: personnelFields.phone.default(""),
+  order: personnelFields.order.default(0),
 });
 export type PersonnelInput = z.infer<typeof personnelInputSchema>;
-export const personnelPatchSchema = personnelInputSchema.partial().strict();
+export const personnelPatchSchema = z.object(personnelFields).partial().strict();
 
-export const unitInputSchema = z.object({
+const unitFields = {
   key: z.string().trim().min(1).max(40),
   label: z.string().trim().min(1).max(80),
   tagesbefehlLabel: z.string().trim().min(1).max(80),
-  order: z.number().int().default(0),
-  kvkOnly: z.boolean().default(false),
-});
+  order: z.number().int(),
+  kvkOnly: z.boolean(),
+};
+export const unitInputSchema = z.object({ ...unitFields, order: unitFields.order.default(0), kvkOnly: unitFields.kvkOnly.default(false) });
 export type UnitInput = z.infer<typeof unitInputSchema>;
-export const unitPatchSchema = unitInputSchema.partial().strict();
+export const unitPatchSchema = z.object(unitFields).partial().strict();
 
-export const categoryInputSchema = z.object({
+const categoryFields = {
   key: z.string().trim().min(1).max(40),
   label: z.string().trim().min(1).max(80),
   color: hex,
-  textColor: hex.default("#000000"),
-  shape: z.enum(CATEGORY_SHAPES).default("rect"),
-  excludeFromTagesbefehl: z.boolean().default(false),
-  tagesbefehlSection: z.enum(TB_SECTIONS).default("dienstbetrieb"),
-  order: z.number().int().default(0),
+  textColor: hex,
+  shape: z.enum(CATEGORY_SHAPES),
+  excludeFromTagesbefehl: z.boolean(),
+  tagesbefehlSection: z.enum(TB_SECTIONS),
+  order: z.number().int(),
+};
+export const categoryInputSchema = z.object({
+  ...categoryFields,
+  textColor: categoryFields.textColor.default("#000000"),
+  shape: categoryFields.shape.default("rect"),
+  excludeFromTagesbefehl: categoryFields.excludeFromTagesbefehl.default(false),
+  tagesbefehlSection: categoryFields.tagesbefehlSection.default("dienstbetrieb"),
+  order: categoryFields.order.default(0),
 });
 export type CategoryInput = z.infer<typeof categoryInputSchema>;
-export const categoryPatchSchema = categoryInputSchema.partial().strict();
+export const categoryPatchSchema = z.object(categoryFields).partial().strict();
 
-export const termInputSchema = z.object({
+const termFields = {
   kind: z.enum(TERM_KINDS),
   de: z.string().trim().min(1).max(120),
-  it: z.string().trim().max(120).default(""),
-  order: z.number().int().default(0),
-});
+  it: z.string().trim().max(120),
+  order: z.number().int(),
+};
+export const termInputSchema = z.object({ ...termFields, it: termFields.it.default(""), order: termFields.order.default(0) });
 export type TermInput = z.infer<typeof termInputSchema>;
-export const termPatchSchema = termInputSchema.partial().strict();
+export const termPatchSchema = z.object(termFields).partial().strict();
 
 export const tagesbefehlRowInputSchema = z.object({
   section: z.enum(TB_SECTIONS),
