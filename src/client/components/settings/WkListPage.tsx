@@ -34,7 +34,7 @@ export function WkListPage({ initialWks }: { initialWks: WkDto[] }) {
                 {formatIsoDe(wk.startDate)} – {formatIsoDe(wk.endDate)}
               </div>
             </div>
-            <Button render={<Link href={`/wk/${wk.id}/week/0`} />}>Öffnen</Button>
+            <Button nativeButton={false} render={<Link href={`/wk/${wk.id}/week/0`} />}>Öffnen</Button>
           </li>
         ))}
       </ul>

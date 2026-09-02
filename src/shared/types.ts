@@ -184,6 +184,8 @@ export interface WeekBundle {
   categories: CategoryDto[];
   personnel: PersonnelDto[];
   settings: SettingsDto;
+  terms: TermTemplateDto[];
+  units: UnitDto[];
   /** Tage, die bereits einen Tagesbefehl haben. */
   tagesbefehlDayIds: string[];
 }

@@ -74,6 +74,14 @@ export const weekService = {
         return rest;
       }),
       settings: toSettingsDto(settings),
+      terms: wkRepo.terms(ctx.db, week.wkId).map((t) => {
+        const { createdAt: _c, updatedAt: _u, ...rest } = t;
+        return rest;
+      }),
+      units: wkRepo.units(ctx.db, week.wkId).map((u) => {
+        const { createdAt: _c, updatedAt: _u, ...rest } = u;
+        return rest;
+      }),
       tagesbefehlDayIds: weekRepo.tagesbefehlDayIds(
         ctx.db,
         days.map((d) => d.id),

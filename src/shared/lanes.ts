@@ -10,8 +10,8 @@ export interface LaneDef {
 
 export type LaneProfileKey = "kvk" | "normal" | "weekend";
 
-const RAP: LaneDef = { key: "rap", label: "Rap", kind: "report", widthWeight: 0.4, zugKey: null };
-const BESO: LaneDef = { key: "beso", label: "Beso", kind: "info", widthWeight: 0.4, zugKey: null };
+const RAP: LaneDef = { key: "rap", label: "Rap", kind: "report", widthWeight: 0.8, zugKey: null };
+const BESO: LaneDef = { key: "beso", label: "Beso", kind: "info", widthWeight: 0.8, zugKey: null };
 
 export const LANE_PROFILES: Record<LaneProfileKey, LaneDef[]> = {
   kvk: [
@@ -33,7 +33,7 @@ export const LANE_PROFILES: Record<LaneProfileKey, LaneDef[]> = {
     RAP,
     BESO,
   ],
-  weekend: [{ key: "kp", label: "Kp", kind: "unit", widthWeight: 3, zugKey: null }, RAP, BESO],
+  weekend: [{ key: "kp", label: "Kp", kind: "unit", widthWeight: 2.4, zugKey: null }, RAP, BESO],
 };
 
 export const LANE_PROFILE_LABELS: Record<LaneProfileKey, string> = {
